@@ -14,6 +14,19 @@
   framework = "#custom"
   envFiles = [".env.local"] # 指定环境变量文件
 
+[[headers]]
+  for = "/assets/*"
+    [headers.values]
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; img-src 'self' https: data:; font-src 'self' https: data:;"
+
 [[redirects]]
   from = "/.netlify/functions/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -24,11 +37,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
-
-[[headers]]
-  for = "/*"
-    [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization" 
+  force = true 
