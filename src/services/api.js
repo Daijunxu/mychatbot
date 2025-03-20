@@ -5,7 +5,7 @@ const BASE_URL = '/.netlify/functions/api';
 export const api = {
   async fetch(endpoint, options = {}) {
     const url = `${BASE_URL}${endpoint}`;
-    console.log('Making request to:', url);
+    console.log('Making request to:', url, options);
     
     try {
       const response = await fetch(url, {
@@ -14,11 +14,14 @@ export const api = {
           'Content-Type': 'application/json',
           ...options.headers,
         },
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || 'Request failed');
+        const errorData = await response.json().catch(() => ({
+          message: `HTTP error! status: ${response.status}`
+        }));
+        throw new Error(errorData.message || 'Request failed');
       }
 
       return response.json();
@@ -29,9 +32,9 @@ export const api = {
   },
 
   auth: {
-    login: (credentials) => api.fetch('/api/auth/login', {
+    login: (credentials) => api.fetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(credentials)
     }),
     signup: (userData) => api.fetch('/api/auth/signup', {
       method: 'POST',

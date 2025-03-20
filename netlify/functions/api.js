@@ -8,14 +8,31 @@ import { config } from '../../server/config.js';
 
 const app = express();
 
-// 中间件
+// 错误处理中间件
+const errorHandler = (err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: true,
+    message: err.message || 'Internal Server Error'
+  });
+};
+
+// 请求日志中间件
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, req.body);
+  next();
+});
+
 app.use(cors({
-  origin: true, // 开发时允许所有来源
-  credentials: true
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
-// MongoDB Atlas 连接
+// MongoDB 连接
 let cachedDb = null;
 
 async function connectToDatabase() {
@@ -26,19 +43,20 @@ async function connectToDatabase() {
   try {
     await mongoose.connect(config.mongodb.uri, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000
     });
     
     cachedDb = mongoose.connection;
-    console.log('Connected to MongoDB Atlas');
+    console.log('Connected to MongoDB');
     return cachedDb;
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    throw new Error('Database connection failed');
+    throw error;
   }
 }
 
-// 测试路由 - 注意这里直接使用根路径
+// 测试路由
 app.get('/test', async (req, res) => {
   try {
     await connectToDatabase();
@@ -48,29 +66,34 @@ app.get('/test', async (req, res) => {
   }
 });
 
-// 其他路由 - 同样使用相对路径
+// 路由
 app.use('/auth', authRouter);
 app.use('/chat', chatRouter);
 
-// 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
+// 错误处理
+app.use(errorHandler);
 
 // 处理函数
 export const handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   
   try {
+    // 确保数据库连接
     await connectToDatabase();
-    return await serverless(app)(event, context);
+    
+    // 处理请求
+    const handler = serverless(app);
+    const result = await handler(event, context);
+    
+    console.log('Response:', result);
+    return result;
   } catch (error) {
     console.error('Handler error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        error: true, 
-        message: error.message || 'Internal server error' 
+      body: JSON.stringify({
+        error: true,
+        message: error.message || 'Internal server error'
       })
     };
   }
