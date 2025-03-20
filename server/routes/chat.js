@@ -1,9 +1,9 @@
-import express from 'express';
-import { Chat } from '../models/Chat.js';
-import { generateResponse, generateTitle, generateSummaryTitle } from '../services/ai.js';
-import jwt from 'jsonwebtoken';
-import { sendMessage, getHistory } from '../controllers/chat.js';
-import { authenticateToken } from '../middleware/auth.js';
+const express = require('express');
+const { Chat } = require('../models/Chat.js');
+const { generateResponse, generateTitle, generateSummaryTitle } = require('../services/ai.js');
+const jwt = require('jsonwebtoken');
+const { sendMessage, getHistory } = require('../controllers/chat.js');
+const { authenticateToken } = require('../middleware/auth.js');
 
 const router = express.Router();
 
@@ -161,5 +161,4 @@ router.delete('/:id', async (req, res) => {
 router.post('/send', sendMessage);
 router.get('/history', getHistory);
 
-// 导出路由器实例
-export { router as chatRouter }; 
+module.exports = { chatRouter: router }; 

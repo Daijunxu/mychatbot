@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken';
-import { config } from '../config.js';
+const jwt = require('jsonwebtoken');
+const { config } = require('../config.js');
 
-export const authenticateToken = (req, res, next) => {
+const authenticateToken = (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -31,4 +31,6 @@ export const authenticateToken = (req, res, next) => {
       message: 'Authentication error'
     });
   }
-}; 
+};
+
+module.exports = { authenticateToken }; 

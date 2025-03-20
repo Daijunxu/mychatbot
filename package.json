@@ -2,7 +2,6 @@
   "name": "ai-coach",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "node server/index.js",

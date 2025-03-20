@@ -1,4 +1,4 @@
-export const config = {
+const config = {
   mongodb: {
     uri: process.env.MONGODB_URI
   },
@@ -18,4 +18,6 @@ export const config = {
     user: process.env.EMAIL_USER,
     password: process.env.EMAIL_APP_PASSWORD
   }
-}; 
+};
+
+module.exports = { config }; 

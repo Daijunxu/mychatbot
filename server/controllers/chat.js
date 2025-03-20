@@ -1,6 +1,6 @@
-import { ChatHistory } from '../models/ChatHistory.js';
+const { ChatHistory } = require('../models/ChatHistory.js');
 
-export const sendMessage = async (req, res) => {
+const sendMessage = async (req, res) => {
   try {
     const { message } = req.body;
     const userId = req.user.id;
@@ -27,7 +27,7 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-export const getHistory = async (req, res) => {
+const getHistory = async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -46,4 +46,6 @@ export const getHistory = async (req, res) => {
       message: error.message || 'Error fetching chat history'
     });
   }
-}; 
+};
+
+module.exports = { sendMessage, getHistory }; 

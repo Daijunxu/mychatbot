@@ -1,10 +1,10 @@
-import express from 'express';
-import serverless from 'serverless-http';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import { chatRouter } from '../../server/routes/chat.js';
-import { authRouter } from '../../server/routes/auth.js';
-import { config } from '../../server/config.js';
+const express = require('express');
+const serverless = require('serverless-http');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const { chatRouter } = require('../../server/routes/chat.js');
+const { authRouter } = require('../../server/routes/auth.js');
+const { config } = require('../../server/config.js');
 
 const app = express();
 
@@ -87,7 +87,7 @@ if (authRouter && authRouter.stack) {
 app.use(errorHandler);
 
 // 处理函数
-export const handler = async (event, context) => {
+const handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   
   console.log('Request received:', {
@@ -125,4 +125,6 @@ export const handler = async (event, context) => {
       })
     };
   }
-}; 
+};
+
+module.exports = { handler }; 

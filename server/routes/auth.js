@@ -1,9 +1,9 @@
-import express from 'express';
-import jwt from 'jsonwebtoken';
-import { OAuth2Client } from 'google-auth-library';
-import { User } from '../models/User.js';
-import { sendWelcomeEmail } from '../services/email.js';
-import { login, signup } from '../controllers/auth.js';
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const { User } = require('../models/User.js');
+const { sendWelcomeEmail } = require('../services/email.js');
+const { login, signup } = require('../controllers/auth.js');
 
 const router = express.Router();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -55,4 +55,4 @@ router.post('/google', async (req, res) => {
   }
 });
 
-export { router as authRouter }; 
+module.exports = { authRouter: router }; 
