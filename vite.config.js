@@ -8,12 +8,22 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        manualChunks: undefined,
-      },
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
     },
+    sourcemap: true,
+    target: 'esnext',
+    minify: 'terser'
   },
   server: {
     port: 5173,
   },
-  base: '/', // 确保这个设置正确
+  base: './',
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  }
 })
