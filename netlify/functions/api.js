@@ -37,10 +37,14 @@ let cachedDb = null;
 
 async function connectToDatabase() {
   if (cachedDb && mongoose.connection.readyState === 1) {
+    console.log('Using cached database connection');
     return cachedDb;
   }
 
   try {
+    console.log('Attempting to connect to MongoDB...');
+    console.log('Connection string exists:', !!config.mongodb.uri);
+    
     await mongoose.connect(config.mongodb.uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -48,10 +52,14 @@ async function connectToDatabase() {
     });
     
     cachedDb = mongoose.connection;
-    console.log('Connected to MongoDB');
+    console.log('Successfully connected to MongoDB');
     return cachedDb;
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('MongoDB connection error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
+    });
     throw error;
   }
 }
@@ -77,23 +85,38 @@ app.use(errorHandler);
 export const handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   
+  console.log('Request received:', {
+    path: event.path,
+    httpMethod: event.httpMethod,
+    headers: event.headers
+  });
+  
   try {
-    // 确保数据库连接
     await connectToDatabase();
-    
-    // 处理请求
     const handler = serverless(app);
     const result = await handler(event, context);
     
-    console.log('Response:', result);
+    console.log('Response:', {
+      statusCode: result.statusCode,
+      headers: result.headers
+    });
     return result;
   } catch (error) {
-    console.error('Handler error:', error);
+    console.error('Handler error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         error: true,
-        message: error.message || 'Internal server error'
+        message: error.message || 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
