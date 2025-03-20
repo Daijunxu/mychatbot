@@ -5,15 +5,19 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
-    required: function() {
-      return !this.googleId; // 只有非 Google 登录用户需要密码
-    }
+    required: true
   },
-  name: String,
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
   picture: String,
   googleId: String,
   createdAt: {

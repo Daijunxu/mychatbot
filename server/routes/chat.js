@@ -2,6 +2,8 @@ import express from 'express';
 import { Chat } from '../models/Chat.js';
 import { generateResponse, generateTitle, generateSummaryTitle } from '../services/ai.js';
 import jwt from 'jsonwebtoken';
+import { sendMessage, getHistory } from '../controllers/chat.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -155,4 +157,9 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// 聊天路由
+router.post('/send', sendMessage);
+router.get('/history', getHistory);
+
+// 导出路由器实例
 export { router as chatRouter }; 

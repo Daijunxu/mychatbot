@@ -3,7 +3,7 @@ import serverless from 'serverless-http';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import { chatRouter } from '../../server/routes/chat.js';
-import authRouter from '../../server/routes/auth.js';
+import { authRouter } from '../../server/routes/auth.js';
 import { config } from '../../server/config.js';
 
 const app = express();
@@ -75,8 +75,13 @@ app.get('/test', async (req, res) => {
 });
 
 // 路由
-app.use('/auth', authRouter);
-app.use('/chat', chatRouter);
+if (chatRouter && chatRouter.stack) {
+  app.use('/chat', chatRouter);
+}
+
+if (authRouter && authRouter.stack) {
+  app.use('/auth', authRouter);
+}
 
 // 错误处理
 app.use(errorHandler);
