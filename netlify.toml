@@ -15,14 +15,19 @@
   envFiles = [".env.local"] # 指定环境变量文件
 
 [[headers]]
+  for = "/assets/*"
+    [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
   for = "/assets/*.js"
     [headers.values]
-    Content-Type = "application/javascript"
+    Content-Type = "application/javascript; charset=utf-8"
 
 [[headers]]
   for = "/assets/*.css"
     [headers.values]
-    Content-Type = "text/css"
+    Content-Type = "text/css; charset=utf-8"
 
 [[headers]]
   for = "/*"
@@ -30,16 +35,23 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
-    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; img-src 'self' https: data:; font-src 'self' https: data:;"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
+# API 路由
 [[redirects]]
-  from = "/.netlify/functions/api/*"
+  from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 
+# SPA 回退路由 - 放在最后
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true 
+  conditions = {Role = ["admin", "editor", "user"]}
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 
