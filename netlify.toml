@@ -3,6 +3,9 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "18"
+
 [dev]
   command = "npm run dev" # 本地开发命令
   targetPort = 5173 # Vite 默认端口
