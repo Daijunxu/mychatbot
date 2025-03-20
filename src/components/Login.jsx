@@ -37,19 +37,32 @@ function Login({ onLogin }) {
   }, [onLogin]);
 
   useEffect(() => {
-    window.handleCredentialResponse = handleCredentialResponse;
+    // 从环境变量获取 Google Client ID
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    console.log('Google Client ID:', googleClientId); // 调试日志
 
+    // 加载 Google Sign-In 脚本
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
-    document.body.appendChild(script);
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      window.google?.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleCredentialResponse
+      });
+      window.google?.accounts.id.renderButton(
+        document.getElementById('g_id_signin'),
+        { theme: 'outline', size: 'large' }
+      );
+    };
 
     return () => {
-      document.body.removeChild(script);
-      delete window.handleCredentialResponse;
+      document.head.removeChild(script);
     };
-  }, [handleCredentialResponse]);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -163,21 +176,7 @@ function Login({ onLogin }) {
 
         <div className="flex flex-col items-center">
           <div className="text-gray-500 mb-4">or</div>
-          <div
-            id="g_id_onload"
-            data-client_id="你的Google Client ID"
-            data-callback="handleCredentialResponse"
-            data-auto_prompt="false"
-          />
-          <div
-            className="g_id_signin"
-            data-type="standard"
-            data-size="large"
-            data-theme="outline"
-            data-text="sign_in_with"
-            data-shape="rectangular"
-            data-logo_alignment="left"
-          />
+          <div id="g_id_signin" className="w-full flex justify-center"></div>
         </div>
       </div>
     </div>
