@@ -1,24 +1,31 @@
 import { config } from '../config';
 
-const BASE_URL = '/api';
+const BASE_URL = '/.netlify/functions/api';
 
 export const api = {
   async fetch(endpoint, options = {}) {
     const url = `${BASE_URL}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    console.log('Making request to:', url);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API request failed');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Request failed' }));
+        throw new Error(error.message || 'Request failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
     }
-
-    return response.json();
   },
 
   auth: {
