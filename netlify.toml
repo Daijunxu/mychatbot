@@ -5,6 +5,11 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs18.x"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["express"]
 
 [dev]
   command = "npm run dev" # 本地开发命令
@@ -39,7 +44,7 @@
 
 # API 路由
 [[redirects]]
-  from = "/api/*"
+  from = "/.netlify/functions/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
@@ -49,9 +54,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  conditions = {Role = ["admin", "editor", "user"]}
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  force = true
