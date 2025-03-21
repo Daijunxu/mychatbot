@@ -29,4 +29,6 @@ const handleSubmit = async (e) => {
   } finally {
     setLoading(false);
   }
-}; 
+};
+
+export default Signup; 
