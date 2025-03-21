@@ -1,75 +1,63 @@
-import { create, verify } from 'https://deno.land/x/djwt@v2.8/mod.ts';
+import { create, verify } from 'https://deno.land/x/djwt@v2.9.1/mod.ts';
 import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts';
 
 const textEncoder = new TextEncoder();
 
-async function hashPassword(password) {
+export async function hashPassword(password) {
   const data = textEncoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function comparePasswords(password, hashedPassword) {
+export async function comparePasswords(password, hashedPassword) {
   const hashedInput = await hashPassword(password);
   return hashedInput === hashedPassword;
 }
 
-async function createToken(payload) {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    textEncoder.encode(Deno.env.get('JWT_SECRET')),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
+const key = await crypto.subtle.generateKey(
+  { name: 'HMAC', hash: 'SHA-512' },
+  true,
+  ['sign', 'verify']
+);
+
+export function createToken(payload) {
+  const jwtSecret = Deno.env.get('JWT_SECRET');
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  
+  return create(
+    { alg: 'HS512', typ: 'JWT' },
+    { ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 },
+    jwtSecret
   );
-
-  return await create({ alg: 'HS256', typ: 'JWT' }, payload, key);
 }
 
-async function verifyToken(token) {
+export function verifyToken(token) {
+  const jwtSecret = Deno.env.get('JWT_SECRET');
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  
   try {
-    const key = await crypto.subtle.importKey(
-      'raw',
-      textEncoder.encode(Deno.env.get('JWT_SECRET')),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-
-    return await verify(token, key);
+    return verify(token, jwtSecret);
   } catch (error) {
-    return null;
+    throw new Error('Invalid token');
   }
 }
 
-// 默认导出函数
 export default async function handler(request, context) {
-  const url = new URL(request.url);
-  const path = url.pathname;
+  const headers = {
+    'Content-Type': 'application/json',
+  };
 
-  // 处理认证相关的请求
-  if (path.endsWith('/auth/login') || path.endsWith('/auth/signup')) {
-    return {
-      hashPassword,
-      comparePasswords,
-      createToken,
-      verifyToken
-    };
+  try {
+    return new Response(JSON.stringify({ status: 'Auth service is running' }), { headers });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers,
+    });
   }
-
-  // 默认响应
-  return new Response(JSON.stringify({ error: 'Invalid auth endpoint' }), {
-    status: 404,
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-}
-
-// 导出其他工具函数
-export {
-  hashPassword,
-  comparePasswords,
-  createToken,
-  verifyToken
-}; 
+} 
