@@ -10,6 +10,7 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["express"]
+  directory = "netlify/functions"
 
 [dev]
   command = "npm run dev" # 本地开发命令
@@ -47,6 +48,7 @@
   from = "/api/*"
   to = "/.netlify/edge-functions/api/:splat"
   status = 200
+  force = true
 
 # SPA 回退路由 - 放在最后
 [[redirects]]
