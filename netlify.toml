@@ -3,21 +3,43 @@
   publish = "dist"
   edge_functions = "netlify/edge-functions"
 
+[[edge_functions]]
+  function = "api"
+  path = "/api/*"
+
+[[edge_functions]]
+  function = "auth"
+  path = "/auth/*"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/edge-functions/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/auth/*"
+  to = "/.netlify/edge-functions/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 [build.environment]
   NODE_VERSION = "18"
-  AWS_LAMBDA_JS_RUNTIME = "nodejs18.x"
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["express"]
 
 [dev]
-  command = "npm run dev" # 本地开发命令
-  targetPort = 5173 # Vite 默认端口
-  port = 8888 # Netlify Dev 端口
-  publish = "dist"
   framework = "#custom"
-  envFiles = [".env.local"] # 指定环境变量文件
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  publish = "dist"
 
 [[headers]]
   for = "/assets/*"
@@ -41,16 +63,3 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-
-# API 路由
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/edge-functions/api/:splat"
-  status = 200
-  force = true
-
-# SPA 回退路由 - 放在最后
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200

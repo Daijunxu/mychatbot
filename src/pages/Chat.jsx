@@ -24,7 +24,7 @@ const Chat = () => {
         return;
       }
 
-      const response = await fetch('/.netlify/edge-functions/api/chat/history', {
+      const response = await fetch('/api/chat/history', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -56,7 +56,7 @@ const Chat = () => {
         return;
       }
 
-      const response = await fetch('/.netlify/edge-functions/api/chat/send', {
+      const response = await fetch('/api/chat/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

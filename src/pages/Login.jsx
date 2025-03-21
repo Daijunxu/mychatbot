@@ -14,28 +14,28 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-  try {
-    const response = await fetch('/.netlify/edge-functions/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-      }),
-    });
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
       const data = await response.json();
       localStorage.setItem('token', data.token);
       navigate('/chat');
     } catch (error) {
       console.error('Login error:', error);
-      setError('Login Failed, Please check your email and password');
+      setError('登录失败，请检查邮箱和密码');
     } finally {
       setLoading(false);
     }
