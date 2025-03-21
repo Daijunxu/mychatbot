@@ -17,39 +17,71 @@ export async function connectToDatabase() {
 
     console.log('MongoDB URI found, attempting to connect...');
     
-    // 解析 URI 来检查格式
+    // 解析并打印 URI（确保密码被隐藏）
     const mongoUrl = new URL(uri);
-    console.log('Database name:', mongoUrl.pathname.substring(1));
+    console.log('Connection details:', {
+      protocol: mongoUrl.protocol,
+      hostname: mongoUrl.hostname,
+      pathname: mongoUrl.pathname,
+      username: mongoUrl.username,
+      // 不打印密码
+      search: mongoUrl.search
+    });
     
     const client = new MongoClient();
     
-    // 添加连接前的日志
-    console.log('Initializing MongoDB client...');
+    // 尝试使用不同的连接选项
+    const connectOptions = {
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+      retryWrites: true,
+      w: 'majority',
+      authMechanism: 'SCRAM-SHA-1',
+      // 添加超时设置
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 5000,
+    };
+
+    console.log('Connecting with options:', connectOptions);
     
-    // 使用基本连接选项
-    await client.connect(uri);
+    await client.connect(uri, connectOptions);
     
     console.log('Client connected, getting database instance...');
     
     const dbName = mongoUrl.pathname.substring(1);
     const db = client.database(dbName);
     
-    console.log('Database instance obtained, testing connection...');
+    console.log('Testing connection with simple operation...');
     
-    // 简单的连接测试
-    const collections = await db.listCollections();
-    console.log('Connection test successful, available collections:', collections);
+    // 执行一个简单的命令来测试连接
+    const result = await db.runCommand({ ping: 1 });
+    console.log('Connection test result:', result);
     
     cachedDb = db;
-    console.log('Database connection cached');
+    console.log('Database connection cached successfully');
     
     return { db };
   } catch (error) {
     console.error('Detailed MongoDB connection error:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      // 添加更多错误属性
+      code: error.code,
+      codeName: error.codeName,
+      errorLabels: error.errorLabels,
     });
+
+    // 尝试解析错误消息中的 JSON
+    try {
+      if (error.message.includes('{')) {
+        const errorJson = JSON.parse(error.message.substring(error.message.indexOf('{')));
+        console.error('Parsed error details:', errorJson);
+      }
+    } catch (e) {
+      console.error('Could not parse error JSON:', e);
+    }
+
     throw new Error(`Unable to connect to MongoDB Atlas: ${error.message}`);
   }
 }
