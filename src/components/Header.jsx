@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from './LoadingSpinner.jsx';
 
 const Header = () => {
   const navigate = useNavigate();

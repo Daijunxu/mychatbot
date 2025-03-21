@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Chat from './pages/Chat';
-import PrivateRoute from './components/PrivateRoute';
+import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
+import Chat from './pages/Chat.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
 
 function App() {
   return (

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import MainLayout from '../layouts/MainLayout.jsx';
+import MessageList from '../components/MessageList.jsx';
+import MessageInput from '../components/MessageInput.jsx';
+import LoadingSpinner from '../components/LoadingSpinner.jsx';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
