@@ -1,4 +1,4 @@
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'https://deno.land/x/mongo@v0.31.1/mod.ts';
 
 let cachedClient = null;
 let cachedDb = null;
@@ -9,22 +9,12 @@ export async function connectToDatabase() {
   }
 
   try {
-    // MongoDB Atlas 连接配置
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      retryWrites: true,
-      w: 'majority'
-    };
-
-    const client = await MongoClient.connect(Deno.env.get('MONGODB_URI'), options);
+    const client = new MongoClient();
+    await client.connect(Deno.env.get('MONGODB_URI'));
     
-    // 从连接字符串中获取数据库名称
     const dbName = new URL(Deno.env.get('MONGODB_URI')).pathname.substring(1);
-    const db = client.db(dbName);
+    const db = client.database(dbName);
 
-    // 测试连接
-    await db.command({ ping: 1 });
     console.log("Successfully connected to MongoDB Atlas");
 
     cachedClient = client;
@@ -32,7 +22,7 @@ export async function connectToDatabase() {
 
     return { client, db };
   } catch (error) {
-    console.error('MongoDB Atlas connection error:', error);
+    console.error('MongoDB connection error:', error);
     throw new Error('Unable to connect to MongoDB Atlas');
   }
 }
@@ -55,7 +45,7 @@ export async function createUser(db, userData) {
       email: userData.email.toLowerCase(),
       createdAt: new Date()
     });
-    return result.insertedId;
+    return result.id;
   } catch (error) {
     console.error('Create user error:', error);
     throw error;
@@ -77,9 +67,7 @@ export async function saveChatMessage(db, message) {
 export async function getChatHistory(db, userId) {
   try {
     return await db.collection('chatHistory')
-      .find({ 
-        userId: new ObjectId(userId) 
-      })
+      .find({ userId })
       .sort({ timestamp: -1 })
       .limit(50)
       .toArray();
