@@ -95,4 +95,29 @@ export async function setupIndexes(db) {
     console.error('Setup indexes error:', error);
     throw error;
   }
+}
+
+// 添加默认导出函数
+export default async function handler(request, context) {
+  try {
+    const { db } = await connectToDatabase();
+    return new Response(
+      JSON.stringify({ status: 'Database connected' }),
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Database connection failed' }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  }
 } 

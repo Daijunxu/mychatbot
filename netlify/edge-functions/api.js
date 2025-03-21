@@ -1,17 +1,8 @@
 import { connectToDatabase, findUser, createUser, saveChatMessage, getChatHistory } from './db.js';
 import { hashPassword, comparePasswords, createToken, verifyToken } from './auth.js';
 
-async function authenticateRequest(request) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.split(' ')[1];
-  return await verifyToken(token);
-}
-
-export default async (request, context) => {
+// 默认导出函数
+export default async function handler(request, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -19,6 +10,7 @@ export default async (request, context) => {
     'Content-Type': 'application/json'
   };
 
+  // 处理 CORS 预检请求
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers });
   }
@@ -77,8 +69,7 @@ export default async (request, context) => {
           const userId = await createUser(db, {
             email,
             password: hashedPassword,
-            name,
-            createdAt: new Date()
+            name
           });
 
           const token = await createToken({
@@ -99,7 +90,10 @@ export default async (request, context) => {
 
       case '/chat/history': {
         if (request.method === 'GET') {
-          const user = await authenticateRequest(request);
+          const authHeader = request.headers.get('Authorization');
+          const token = authHeader?.split(' ')[1];
+          const user = token ? await verifyToken(token) : null;
+
           if (!user) {
             return new Response(
               JSON.stringify({ error: 'Unauthorized' }),
@@ -118,7 +112,10 @@ export default async (request, context) => {
 
       case '/chat/send': {
         if (request.method === 'POST') {
-          const user = await authenticateRequest(request);
+          const authHeader = request.headers.get('Authorization');
+          const token = authHeader?.split(' ')[1];
+          const user = token ? await verifyToken(token) : null;
+
           if (!user) {
             return new Response(
               JSON.stringify({ error: 'Unauthorized' }),
@@ -127,13 +124,12 @@ export default async (request, context) => {
           }
 
           const { message } = await request.json();
-          const chatMessage = {
+          const chatMessage = await saveChatMessage(db, {
             userId: user.id,
             message,
             timestamp: new Date()
-          };
+          });
 
-          await saveChatMessage(db, chatMessage);
           return new Response(
             JSON.stringify({ message: chatMessage }),
             { headers }
@@ -155,4 +151,4 @@ export default async (request, context) => {
       { status: 500, headers }
     );
   }
-}; 
+} 
