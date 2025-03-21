@@ -1,4 +1,4 @@
-import { MongoClient } from 'https://deno.land/x/mongo@v0.31.1/mod.ts';
+import { MongoClient } from "https://deno.land/x/atlas_sdk@v1.1.1/mod.ts";
 
 let cachedDb = null;
 
@@ -17,45 +17,37 @@ export async function connectToDatabase() {
 
     console.log('MongoDB URI found, attempting to connect...');
     
-    // 解析并打印 URI（确保密码被隐藏）
+    // 解析 URI 来获取数据库名称
     const mongoUrl = new URL(uri);
-    console.log('Connection details:', {
-      protocol: mongoUrl.protocol,
-      hostname: mongoUrl.hostname,
-      pathname: mongoUrl.pathname,
-      username: mongoUrl.username,
-      // 不打印密码
-      search: mongoUrl.search
-    });
-    
-    const client = new MongoClient();
-    
-    // 尝试使用不同的连接选项
-    const connectOptions = {
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      retryWrites: true,
-      w: 'majority',
-      authMechanism: 'SCRAM-SHA-1',
-      // 添加超时设置
-      connectTimeoutMS: 5000,
-      socketTimeoutMS: 5000,
-    };
-
-    console.log('Connecting with options:', connectOptions);
-    
-    await client.connect(uri, connectOptions);
-    
-    console.log('Client connected, getting database instance...');
-    
     const dbName = mongoUrl.pathname.substring(1);
+    
+    console.log('Initializing MongoDB client...');
+    
+    // 使用新的驱动创建客户端
+    const client = new MongoClient({
+      endpoint: uri,
+      dataSource: "Cluster0",  // 替换为你的集群名称
+      database: dbName,
+      auth: {
+        mechanism: "SCRAM-SHA-256"
+      },
+      tls: true
+    });
+
+    console.log('Client initialized, attempting connection...');
+    
+    // 连接到数据库
+    await client.connect();
+    
+    console.log('Connected successfully, getting database instance...');
+    
     const db = client.database(dbName);
     
-    console.log('Testing connection with simple operation...');
+    console.log('Testing connection...');
     
-    // 执行一个简单的命令来测试连接
-    const result = await db.runCommand({ ping: 1 });
-    console.log('Connection test result:', result);
+    // 测试连接
+    const collections = await db.listCollections();
+    console.log('Available collections:', collections);
     
     cachedDb = db;
     console.log('Database connection cached successfully');
@@ -66,20 +58,24 @@ export async function connectToDatabase() {
       message: error.message,
       stack: error.stack,
       name: error.name,
-      // 添加更多错误属性
+      // 添加更多错误信息
       code: error.code,
-      codeName: error.codeName,
-      errorLabels: error.errorLabels,
+      codeName: error.codeName
     });
 
-    // 尝试解析错误消息中的 JSON
-    try {
-      if (error.message.includes('{')) {
-        const errorJson = JSON.parse(error.message.substring(error.message.indexOf('{')));
+    // 尝试解析错误消息
+    if (typeof error.message === 'string' && error.message.includes('{')) {
+      try {
+        const errorJson = JSON.parse(
+          error.message.substring(
+            error.message.indexOf('{'),
+            error.message.lastIndexOf('}') + 1
+          )
+        );
         console.error('Parsed error details:', errorJson);
+      } catch (e) {
+        console.error('Could not parse error JSON:', e);
       }
-    } catch (e) {
-      console.error('Could not parse error JSON:', e);
     }
 
     throw new Error(`Unable to connect to MongoDB Atlas: ${error.message}`);
