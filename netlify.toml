@@ -1,7 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist"
-  edge_functions = "netlify/edge-functions"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -10,7 +10,6 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["express"]
-  directory = "netlify/functions"
 
 [dev]
   command = "npm run dev" # 本地开发命令
@@ -38,15 +37,15 @@
 [[headers]]
   for = "/*"
     [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Cache-Control = "public, max-age=0, must-revalidate"
 
 # API 路由
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/edge-functions/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 
