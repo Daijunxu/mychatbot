@@ -1,26 +1,60 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login.jsx';
-import Signup from './pages/Signup.jsx';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import Login from './components/Login';
 import Chat from './components/Chat';
-import PrivateRoute from './components/PrivateRoute.jsx';
+import { supabase } from './lib/supabase';
+
+function AuthWrapper({ token }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (token && location.pathname === '/login') {
+      navigate('/', { replace: true });
+    } else if (!token && location.pathname === '/') {
+      navigate('/login', { replace: true });
+    }
+  }, [token, location.pathname, navigate]);
+
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<Chat token={token} />} />
+    </Routes>
+  );
+}
 
 function App() {
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 检查初始会话
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token || null);
+      setLoading(false);
+    });
+
+    // 监听认证状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">加载中...</p>
+      </div>
+    );
+  }
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route 
-          path="/chat" 
-          element={
-            <PrivateRoute>
-              <Chat />
-            </PrivateRoute>
-          } 
-        />
-        <Route path="/" element={<Navigate to="/chat" replace />} />
-      </Routes>
-    </Router>
+    <BrowserRouter>
+      <AuthWrapper token={token} />
+    </BrowserRouter>
   );
 }
 

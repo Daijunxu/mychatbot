@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
-const Chat = () => {
+const Chat = ({ token }) => {
   const [messages, setMessages] = useState([
     {
       content: "你好！我是 AI Coach，很高兴为你提供帮助。我可以帮你解决职业发展、个人成长等方面的问题。",
@@ -23,38 +24,30 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // 添加 token 检查
+  // 检查认证状态
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
     }
-  }, [navigate]);
+  }, [token]); // 只在 token 变化时执行
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   // 发送消息
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // 添加用户消息
-    const userMessage = {
-      content: inputMessage,
-      isUser: true,
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
     setIsLoading(true);
-
     try {
-      const response = await fetch('/api/chat/send', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,29 +56,14 @@ const Chat = () => {
         body: JSON.stringify({ message: inputMessage })
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          // 只有在确实是认证问题时才登出
-          const data = await response.json();
-          if (data.error === 'Invalid token' || data.error === 'No token provided') {
-            localStorage.removeItem('token');
-            navigate('/login');
-            return;
-          }
-        }
-        throw new Error('Failed to send message');
-      }
+      if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
-      
-      // 添加 AI 回复
-      const aiMessage = {
-        content: data.response || "抱歉，我现在无法回答。请稍后再试。",
-        isUser: false,
-        timestamp: new Date().toISOString()
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, 
+        { content: inputMessage, isUser: true, timestamp: new Date().toISOString() },
+        { content: data.response, isUser: false, timestamp: new Date().toISOString() }
+      ]);
+      setInputMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       // 添加错误提示消息，但不登出
@@ -106,6 +84,12 @@ const Chat = () => {
       <div className="bg-white shadow-sm p-4 flex items-center">
         <img src="/logo.png" alt="AI Coach" className="w-8 h-8 mr-2" />
         <h1 className="text-xl font-semibold">AI Coach</h1>
+        <button
+          onClick={handleSignOut}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 ml-auto"
+        >
+          退出登录
+        </button>
       </div>
 
       {/* 消息区域 */}
