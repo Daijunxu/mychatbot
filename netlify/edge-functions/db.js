@@ -1,4 +1,4 @@
-import { MongoClient } from 'https://deno.land/x/mongo@v0.31.1/mod.ts';
+import { MongoClient } from "https://deno.land/x/mongo@v0.29.4/mod.ts";
 
 let cachedDb = null;
 
@@ -17,33 +17,58 @@ export async function connectToDatabase() {
 
     console.log('MongoDB URI found, attempting to connect...');
     
-    // 创建新的客户端实例
+    // 解析 URI 并打印部分信息（不包含敏感信息）
+    const parsedUri = new URL(uri);
+    console.log('Connection info:', {
+      protocol: parsedUri.protocol,
+      hostname: parsedUri.hostname,
+      database: parsedUri.pathname.substr(1),
+      username: parsedUri.username
+    });
+    
+    // 创建客户端
     const client = new MongoClient();
     
-    console.log('Connecting to database...');
+    // 添加连接选项
+    const options = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+    };
     
-    // 使用最基本的连接选项
+    console.log('Connecting with options:', options);
+    
+    // 连接到数据库
     await client.connect(uri);
     
     console.log('Connected to database, getting instance...');
     
-    // 从 URI 中获取数据库名称
-    const dbName = new URL(uri).pathname.substring(1);
+    // 获取数据库实例
+    const dbName = parsedUri.pathname.substring(1);
     const db = client.database(dbName);
     
     // 测试连接
     console.log('Testing connection...');
-    await db.listCollections();
+    const collections = await db.listCollections();
+    console.log('Available collections:', collections);
     
-    console.log('Connection test successful');
     cachedDb = db;
+    console.log('Connection successful and cached');
     
     return { db };
   } catch (error) {
+    // 详细的错误日志
     console.error('Database connection error:', {
-      error: error.message,
-      type: error.constructor.name
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      // 尝试解析嵌套的错误信息
+      details: error.message.includes('{') 
+        ? JSON.parse(error.message.substring(error.message.indexOf('{')))
+        : null
     });
+    
     throw error;
   }
 }
