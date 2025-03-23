@@ -1,6 +1,7 @@
-import { MongoClient } from "https://deno.land/x/mongo@v0.29.4/mod.ts";
+import { MongoClient } from "https://deno.land/x/mongo@v0.31.2/mod.ts";
 
 let cachedDb = null;
+let client = null;
 
 export async function connectToDatabase() {
   if (cachedDb) {
@@ -11,61 +12,57 @@ export async function connectToDatabase() {
   try {
     const uri = Deno.env.get('MONGODB_URI');
     if (!uri) {
-      console.error('MONGODB_URI is not defined');
       throw new Error('Please define the MONGODB_URI environment variable');
     }
 
-    console.log('MongoDB URI found, attempting to connect...');
-    
-    // 解析 URI 并打印部分信息（不包含敏感信息）
-    const parsedUri = new URL(uri);
-    console.log('Connection info:', {
-      protocol: parsedUri.protocol,
-      hostname: parsedUri.hostname,
-      database: parsedUri.pathname.substr(1),
-      username: parsedUri.username
+    console.log('Attempting to connect to MongoDB...');
+
+    // 创建新的客户端实例
+    client = new MongoClient();
+
+    // 基本连接，不使用任何额外选项
+    await client.connect({
+      db: "mychatbot",     // 直接指定数据库名
+      tls: true,           // 启用 TLS
+      servers: [{
+        host: "cluster0.frwzn.mongodb.net",
+        port: 27017
+      }],
+      credential: {
+        username: "netlifyuser",  // 使用新创建的用户名
+        password: Deno.env.get('MONGODB_PASSWORD'),  // 从环境变量获取密码
+        db: "mychatbot",
+        mechanism: "SCRAM-SHA-1"
+      }
     });
-    
-    // 创建客户端
-    const client = new MongoClient();
-    
-    // 添加连接选项
-    const options = {
-      tls: true,
-      retryWrites: true,
-      w: 'majority'
-    };
-    
-    console.log('Connecting with options:', options);
-    
-    // 连接到数据库
-    await client.connect(uri);
-    
-    console.log('Connected to database, getting instance...');
-    
-    // 获取数据库实例
-    const dbName = parsedUri.pathname.substring(1);
-    const db = client.database(dbName);
-    
+
+    console.log('Connected to MongoDB');
+
+    const db = client.database("mychatbot");
+    cachedDb = db;
+
     // 测试连接
-    console.log('Testing connection...');
     const collections = await db.listCollections();
     console.log('Available collections:', collections);
-    
-    cachedDb = db;
-    console.log('Connection successful and cached');
-    
+
     return { db };
   } catch (error) {
-    // 简化错误处理
     console.error('Database connection error:', {
-      message: error.message,
       name: error.name,
-      type: error.constructor.name
+      message: error.message,
+      cause: error.cause
     });
-    
-    // 直接抛出原始错误
-    throw new Error(`Database connection failed: ${error.message}`);
+    throw error;
+  }
+}
+
+// 添加关闭连接的函数
+export async function closeConnection() {
+  if (client) {
+    await client.close();
+    client = null;
+    cachedDb = null;
+    console.log('Database connection closed');
   }
 }
 
