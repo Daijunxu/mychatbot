@@ -63,4 +63,21 @@ export async function getUserMessages(userId) {
 
   if (error) throw error;
   return data;
+}
+
+// 添加默认导出函数
+export default async function handler(request, context) {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const supabase = getSupabaseClient();
+    return new Response(JSON.stringify({ status: 'Supabase connection successful' }), { headers });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers,
+    });
+  }
 } 
