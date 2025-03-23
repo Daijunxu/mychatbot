@@ -1,50 +1,35 @@
-import { create, verify } from 'https://deno.land/x/djwt@v2.9.1/mod.ts';
-import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-const textEncoder = new TextEncoder();
-
-export async function hashPassword(password) {
-  const data = textEncoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-export async function comparePasswords(password, hashedPassword) {
-  const hashedInput = await hashPassword(password);
-  return hashedInput === hashedPassword;
-}
-
-const key = await crypto.subtle.generateKey(
-  { name: 'HMAC', hash: 'SHA-512' },
-  true,
-  ['sign', 'verify']
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL'),
+  Deno.env.get('SUPABASE_ANON_KEY')
 );
 
-export function createToken(payload) {
-  const jwtSecret = Deno.env.get('JWT_SECRET');
-  if (!jwtSecret) {
-    throw new Error('JWT_SECRET is not defined');
-  }
+export async function signUp(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
   
-  return create(
-    { alg: 'HS512', typ: 'JWT' },
-    { ...payload, exp: Date.now() + 24 * 60 * 60 * 1000 },
-    jwtSecret
-  );
+  if (error) throw error;
+  return data;
 }
 
-export function verifyToken(token) {
-  const jwtSecret = Deno.env.get('JWT_SECRET');
-  if (!jwtSecret) {
-    throw new Error('JWT_SECRET is not defined');
-  }
+export async function signIn(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
   
-  try {
-    return verify(token, jwtSecret);
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
+  if (error) throw error;
+  return data;
+}
+
+export async function verifySession(token) {
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error) throw error;
+  return user;
 }
 
 export default async function handler(request, context) {
