@@ -31,10 +31,9 @@ export async function connectToDatabase() {
     
     // 添加连接选项
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       tls: true,
-      tlsAllowInvalidCertificates: false,
+      retryWrites: true,
+      w: 'majority'
     };
     
     console.log('Connecting with options:', options);
@@ -58,18 +57,15 @@ export async function connectToDatabase() {
     
     return { db };
   } catch (error) {
-    // 详细的错误日志
+    // 简化错误处理
     console.error('Database connection error:', {
       message: error.message,
       name: error.name,
-      stack: error.stack,
-      // 尝试解析嵌套的错误信息
-      details: error.message.includes('{') 
-        ? JSON.parse(error.message.substring(error.message.indexOf('{')))
-        : null
+      type: error.constructor.name
     });
     
-    throw error;
+    // 直接抛出原始错误
+    throw new Error(`Database connection failed: ${error.message}`);
   }
 }
 
