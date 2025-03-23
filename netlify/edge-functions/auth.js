@@ -44,17 +44,23 @@ export async function verifySession(token) {
 
 export default async (request, context) => {
   try {
-    // 处理 OAuth 回调
     const url = new URL(request.url);
-    const code = url.searchParams.get('code');
+    const hash = url.hash.substring(1); // 移除开头的 #
+    const params = new URLSearchParams(hash);
     
-    if (!code) {
-      return new Response('Missing code parameter', { status: 400 });
+    // 从 URL hash 中获取 token
+    const accessToken = params.get('access_token');
+    
+    if (!accessToken) {
+      return new Response('Missing access token', { status: 400 });
     }
 
-    // 交换 code 获取 session
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    
+    // 设置 session
+    const { data: { session }, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: params.get('refresh_token')
+    });
+
     if (error) {
       console.error('Auth error:', error);
       return new Response(error.message, { status: 400 });
@@ -65,7 +71,7 @@ export default async (request, context) => {
       status: 302,
       headers: {
         'Location': '/',
-        'Set-Cookie': `sb-token=${data.session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
+        'Set-Cookie': `sb-token=${session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
       }
     });
   } catch (error) {
