@@ -1,4 +1,4 @@
-import { MongoClient } from "https://deno.land/x/atlas_sdk@v1.1.1/mod.ts";
+import { MongoClient } from 'https://deno.land/x/mongo@v0.31.1/mod.ts';
 
 let cachedDb = null;
 
@@ -17,68 +17,34 @@ export async function connectToDatabase() {
 
     console.log('MongoDB URI found, attempting to connect...');
     
-    // 解析 URI 来获取数据库名称
-    const mongoUrl = new URL(uri);
-    const dbName = mongoUrl.pathname.substring(1);
+    // 创建新的客户端实例
+    const client = new MongoClient();
     
-    console.log('Initializing MongoDB client...');
+    console.log('Connecting to database...');
     
-    // 使用新的驱动创建客户端
-    const client = new MongoClient({
-      endpoint: uri,
-      dataSource: "Cluster0",  // 替换为你的集群名称
-      database: dbName,
-      auth: {
-        mechanism: "SCRAM-SHA-256"
-      },
-      tls: true
-    });
-
-    console.log('Client initialized, attempting connection...');
+    // 使用最基本的连接选项
+    await client.connect(uri);
     
-    // 连接到数据库
-    await client.connect();
+    console.log('Connected to database, getting instance...');
     
-    console.log('Connected successfully, getting database instance...');
-    
+    // 从 URI 中获取数据库名称
+    const dbName = new URL(uri).pathname.substring(1);
     const db = client.database(dbName);
     
-    console.log('Testing connection...');
-    
     // 测试连接
-    const collections = await db.listCollections();
-    console.log('Available collections:', collections);
+    console.log('Testing connection...');
+    await db.listCollections();
     
+    console.log('Connection test successful');
     cachedDb = db;
-    console.log('Database connection cached successfully');
     
     return { db };
   } catch (error) {
-    console.error('Detailed MongoDB connection error:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      // 添加更多错误信息
-      code: error.code,
-      codeName: error.codeName
+    console.error('Database connection error:', {
+      error: error.message,
+      type: error.constructor.name
     });
-
-    // 尝试解析错误消息
-    if (typeof error.message === 'string' && error.message.includes('{')) {
-      try {
-        const errorJson = JSON.parse(
-          error.message.substring(
-            error.message.indexOf('{'),
-            error.message.lastIndexOf('}') + 1
-          )
-        );
-        console.error('Parsed error details:', errorJson);
-      } catch (e) {
-        console.error('Could not parse error JSON:', e);
-      }
-    }
-
-    throw new Error(`Unable to connect to MongoDB Atlas: ${error.message}`);
+    throw error;
   }
 }
 
@@ -95,8 +61,7 @@ export async function findUser(db, email) {
 export async function createUser(db, userData) {
   try {
     const users = db.collection('users');
-    const result = await users.insertOne(userData);
-    return result;
+    return await users.insertOne(userData);
   } catch (error) {
     console.error('Create user error:', error);
     throw error;
@@ -106,8 +71,7 @@ export async function createUser(db, userData) {
 export async function saveChatMessage(db, messageData) {
   try {
     const messages = db.collection('messages');
-    const result = await messages.insertOne(messageData);
-    return result;
+    return await messages.insertOne(messageData);
   } catch (error) {
     console.error('Save message error:', error);
     throw error;
