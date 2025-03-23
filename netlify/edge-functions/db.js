@@ -1,7 +1,6 @@
-import { MongoClient } from "https://deno.land/x/mongo@v0.31.2/mod.ts";
+import { MongoClient } from "https://deno.land/x/mongo@v0.28.0/mod.ts";
 
 let cachedDb = null;
-let client = null;
 
 export async function connectToDatabase() {
   if (cachedDb) {
@@ -16,53 +15,32 @@ export async function connectToDatabase() {
     }
 
     console.log('Attempting to connect to MongoDB...');
-
-    // 创建新的客户端实例
-    client = new MongoClient();
-
-    // 基本连接，不使用任何额外选项
-    await client.connect({
-      db: "mychatbot",     // 直接指定数据库名
-      tls: true,           // 启用 TLS
-      servers: [{
-        host: "cluster0.frwzn.mongodb.net",
-        port: 27017
-      }],
-      credential: {
-        username: "netlifyuser",  // 使用新创建的用户名
-        password: Deno.env.get('MONGODB_PASSWORD'),  // 从环境变量获取密码
-        db: "mychatbot",
-        mechanism: "SCRAM-SHA-1"
-      }
-    });
-
+    
+    const client = new MongoClient();
+    
+    // 使用完整的连接字符串
+    await client.connect(uri);
+    
     console.log('Connected to MongoDB');
-
-    const db = client.database("mychatbot");
+    
+    // 从 URI 获取数据库名称
+    const dbName = new URL(uri).pathname.substring(1);
+    const db = client.database(dbName);
+    
+    // 简单的连接测试
+    console.log('Testing connection...');
+    await db.listCollections();
+    
+    console.log('Connection test successful');
     cachedDb = db;
-
-    // 测试连接
-    const collections = await db.listCollections();
-    console.log('Available collections:', collections);
-
+    
     return { db };
   } catch (error) {
     console.error('Database connection error:', {
       name: error.name,
-      message: error.message,
-      cause: error.cause
+      message: error.message
     });
     throw error;
-  }
-}
-
-// 添加关闭连接的函数
-export async function closeConnection() {
-  if (client) {
-    await client.close();
-    client = null;
-    cachedDb = null;
-    console.log('Database connection closed');
   }
 }
 
