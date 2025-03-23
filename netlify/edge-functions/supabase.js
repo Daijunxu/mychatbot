@@ -1,23 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-export function getSupabaseClient() {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL');
+const supabaseAnonKey = Deno.env.get('VITE_SUPABASE_ANON_KEY');
 
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false
-    }
-  });
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase credentials in supabase.js');
 }
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 // 用户相关函数
 export async function findUserByEmail(email) {
-  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('users')
     .select('*')
@@ -29,7 +27,6 @@ export async function findUserByEmail(email) {
 }
 
 export async function createNewUser(userData) {
-  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('users')
     .insert([userData])
@@ -42,7 +39,6 @@ export async function createNewUser(userData) {
 
 // 消息相关函数
 export async function saveMessage(messageData) {
-  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('messages')
     .insert([messageData])
@@ -54,7 +50,6 @@ export async function saveMessage(messageData) {
 }
 
 export async function getUserMessages(userId) {
-  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('messages')
     .select('*')
@@ -72,7 +67,6 @@ export default async function handler(request, context) {
   };
 
   try {
-    const supabase = getSupabaseClient();
     return new Response(JSON.stringify({ status: 'Supabase connection successful' }), { headers });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {

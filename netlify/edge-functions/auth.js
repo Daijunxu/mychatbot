@@ -1,9 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL'),
-  Deno.env.get('SUPABASE_ANON_KEY')
-);
+// 获取环境变量
+const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL');
+const supabaseAnonKey = Deno.env.get('VITE_SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase credentials in auth.js');
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function signUp(email, password) {
   const { data, error } = await supabase.auth.signUp({
@@ -32,17 +42,34 @@ export async function verifySession(token) {
   return user;
 }
 
-export default async function handler(request, context) {
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-
+export default async (request, context) => {
   try {
-    return new Response(JSON.stringify({ status: 'Auth service is running' }), { headers });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers,
+    // 处理 OAuth 回调
+    const url = new URL(request.url);
+    const code = url.searchParams.get('code');
+    
+    if (!code) {
+      return new Response('Missing code parameter', { status: 400 });
+    }
+
+    // 交换 code 获取 session
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (error) {
+      console.error('Auth error:', error);
+      return new Response(error.message, { status: 400 });
+    }
+
+    // 重定向到主页
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': '/',
+        'Set-Cookie': `sb-token=${data.session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
+      }
     });
+  } catch (error) {
+    console.error('Auth handler error:', error);
+    return new Response(error.message, { status: 500 });
   }
-} 
+}; 
