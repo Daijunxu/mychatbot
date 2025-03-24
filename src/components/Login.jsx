@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 function Login() {
@@ -6,6 +7,31 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // 检查 URL 中是否有认证信息
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken) {
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error('Session error:', error);
+            setError(error.message);
+          } else {
+            navigate('/', { replace: true });
+          }
+        });
+      }
+    }
+  }, [navigate]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -28,21 +54,10 @@ function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      // 获取当前环境的域名
-      const site_url = import.meta.env.PROD 
-        ? 'https://gilded-cucurucho-a6bf54.netlify.app'
-        : 'http://localhost:3000';
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-          redirectTo: `${site_url}/auth/callback`,
-          // 确保使用正确的站点 URL
-          site_url: site_url
+          redirectTo: window.location.origin
         }
       });
 

@@ -49,15 +49,23 @@ export async function verifySession(token) {
 export default async (request, context) => {
   try {
     const url = new URL(request.url);
-    const code = url.searchParams.get('code');
+    const hashParams = url.hash.substring(1); // 移除 # 符号
+    const params = new URLSearchParams(hashParams);
     
-    if (!code) {
-      return new Response('Missing code parameter', { status: 400 });
+    // 从 URL hash 中获取 tokens
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    
+    if (!accessToken) {
+      return new Response('Missing access token', { status: 400 });
     }
 
-    // 交换 code 获取 session
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    
+    // 设置 session
+    const { data: { session }, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+
     if (error) {
       console.error('Auth error:', error);
       return new Response(error.message, { status: 400 });
@@ -68,11 +76,14 @@ export default async (request, context) => {
       status: 302,
       headers: {
         'Location': redirectUrl,
-        'Set-Cookie': `sb-token=${data.session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
+        'Set-Cookie': `sb-token=${session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
       }
     });
   } catch (error) {
     console.error('Auth handler error:', error);
-    return new Response(error.message, { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }; 
