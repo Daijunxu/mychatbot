@@ -28,14 +28,21 @@ function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      const redirectUrl = import.meta.env.PROD 
-        ? 'https://gilded-cucurucho-a6bf54.netlify.app/auth/callback'  // 更新为完整的回调路径
-        : 'http://localhost:3000/auth/callback';
+      // 获取当前环境的域名
+      const site_url = import.meta.env.PROD 
+        ? 'https://gilded-cucurucho-a6bf54.netlify.app'
+        : 'http://localhost:3000';
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+          redirectTo: `${site_url}/auth/callback`,
+          // 确保使用正确的站点 URL
+          site_url: site_url
         }
       });
 
