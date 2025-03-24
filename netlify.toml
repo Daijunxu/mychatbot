@@ -10,12 +10,12 @@
   edge_functions_port = 9999
 
 [[edge_functions]]
-  path = "/api"
   function = "api"
+  path = "/api"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/edge-functions/api/:splat"
+  from = "/api"
+  to = "/.netlify/edge-functions/api"
   status = 200
   force = true
 

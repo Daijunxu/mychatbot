@@ -103,19 +103,15 @@ function Chat({ token }) {
     setLoading(true);
     setError(null);
 
-    // 更新消息列表
-    const updatedMessages = [...messages, { content: userMessage, is_user: true }];
-    setMessages(updatedMessages);
-
     try {
-      const initialPrompt = '作为我的生活教练，帮助我一步一步的解决问题...'; // 你的完整prompt
+      const updatedMessages = [...messages, { content: userMessage, is_user: true }];
+      setMessages(updatedMessages);
 
-      // 根据环境选择正确的 API URL
-      const apiUrl = import.meta.env.PROD 
-        ? '/.netlify/edge-functions/api'
-        : '/api';  // 开发环境使用简单路径
+      const initialPrompt = '作为我的生活教练，帮助我一步一步的解决问题...';
 
-      console.log('Calling API at:', apiUrl); // 调试日志
+      // 使用统一的 API 路径
+      const apiUrl = '/api';
+      console.log('Calling API at:', apiUrl);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
