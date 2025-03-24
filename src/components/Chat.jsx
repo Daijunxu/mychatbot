@@ -33,18 +33,21 @@ const Chat = ({ token }) => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        return;
-      }
-      // 清除本地存储
-      localStorage.removeItem('sb-token');
-      localStorage.removeItem('supabase.auth.token');
-      // 强制跳转到登录页
-      window.location.href = '/login';
+      // 清除所有 Supabase 相关的存储
+      window.localStorage.removeItem('supabase.auth.token');
+      window.localStorage.removeItem('supabase.auth.expires_at');
+      window.localStorage.removeItem('supabase.auth.refresh_token');
+      window.localStorage.removeItem('sb-kaolugejpluppefeznwc-auth-token');
+      
+      // 清除其他可能的会话数据
+      await supabase.auth.clearSession();
+      
+      // 强制刷新页面并跳转到登录
+      window.location.replace('/login');
     } catch (error) {
       console.error('Sign out error:', error);
+      // 即使出错也强制跳转
+      window.location.replace('/login');
     }
   };
 
