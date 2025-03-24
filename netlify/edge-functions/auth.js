@@ -3,6 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 // 获取环境变量
 const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL');
 const supabaseAnonKey = Deno.env.get('VITE_SUPABASE_ANON_KEY');
+const isProd = Deno.env.get('NETLIFY_ENV') === 'production';
+const redirectUrl = isProd 
+  ? 'https://gilded-cucurucho-a6bf54.netlify.app'
+  : 'http://localhost:3000';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase credentials in auth.js');
@@ -45,22 +49,15 @@ export async function verifySession(token) {
 export default async (request, context) => {
   try {
     const url = new URL(request.url);
-    const hash = url.hash.substring(1); // 移除开头的 #
-    const params = new URLSearchParams(hash);
+    const code = url.searchParams.get('code');
     
-    // 从 URL hash 中获取 token
-    const accessToken = params.get('access_token');
-    
-    if (!accessToken) {
-      return new Response('Missing access token', { status: 400 });
+    if (!code) {
+      return new Response('Missing code parameter', { status: 400 });
     }
 
-    // 设置 session
-    const { data: { session }, error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: params.get('refresh_token')
-    });
-
+    // 交换 code 获取 session
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
     if (error) {
       console.error('Auth error:', error);
       return new Response(error.message, { status: 400 });
@@ -70,8 +67,8 @@ export default async (request, context) => {
     return new Response(null, {
       status: 302,
       headers: {
-        'Location': '/',
-        'Set-Cookie': `sb-token=${session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
+        'Location': redirectUrl,
+        'Set-Cookie': `sb-token=${data.session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`
       }
     });
   } catch (error) {

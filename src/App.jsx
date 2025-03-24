@@ -7,6 +7,10 @@ import { supabase } from './lib/supabase';
 function AuthWrapper({ token }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const isProd = import.meta.env.PROD;
+  const baseUrl = isProd 
+    ? 'https://gilded-cucurucho-a6bf54.netlify.app'
+    : 'http://localhost:3000';
 
   useEffect(() => {
     if (token && location.pathname === '/login') {
