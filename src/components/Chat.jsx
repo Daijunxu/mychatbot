@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import Avatar from './Avatar';  // 使用我们自己的 Avatar 组件
 
 const Chat = ({ token }) => {
   const [messages, setMessages] = useState([
@@ -14,6 +15,8 @@ const Chat = ({ token }) => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
 
   // 自动滚动到最新消息
   const scrollToBottom = () => {
@@ -24,12 +27,45 @@ const Chat = ({ token }) => {
     scrollToBottom();
   }, [messages]);
 
-  // 检查认证状态
   useEffect(() => {
     if (!token) {
       navigate('/login');
+      return;
     }
-  }, [token]); // 只在 token 变化时执行
+
+    // 直接从 supabase 获取用户信息
+    const fetchUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.error('Error fetching user:', error);
+          throw error;
+        }
+        
+        if (!user) {
+          throw new Error('No user found');
+        }
+
+        console.log('User data:', user); // 调试日志
+        setUser(user);
+      } catch (error) {
+        console.error('Error getting user:', error);
+        navigate('/login');
+      }
+    };
+
+    fetchUser();
+  }, [token, navigate]);
+
+  // 如果用户数据还没加载完成，显示加载状态
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-gray-600">加载中...</div>
+      </div>
+    );
+  }
 
   const handleSignOut = async () => {
     try {
@@ -90,85 +126,89 @@ const Chat = ({ token }) => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      {/* 头部 */}
-      <div className="bg-white shadow-sm p-4 flex items-center">
-        <img src="/logo.png" alt="AI Coach" className="w-8 h-8 mr-2" />
-        <h1 className="text-xl font-semibold">AI Coach</h1>
-        <button
-          onClick={handleSignOut}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 ml-auto"
-        >
-          退出登录
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-100">
+      <div className="max-w-4xl mx-auto p-4">
+        {/* 顶部栏 */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="AI Coach" className="w-8 h-8 rounded-full" />
+            <span className="text-gray-700 font-medium">AI Coach</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Avatar 
+                name={user.user_metadata?.full_name || user.email || ''} 
+                size={32} 
+              />
+              <span className="text-gray-700">
+                {user.user_metadata?.full_name || user.email || '用户'}
+              </span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 text-sm text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              退出
+            </button>
+          </div>
+        </div>
 
-      {/* 消息区域 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-          >
-            {!message.isUser && (
-              <img src="/logo.png" alt="AI" className="w-8 h-8 rounded-full mr-2" />
-            )}
+        {/* 聊天区域 */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4 h-[600px] overflow-y-auto">
+          {messages.map((msg, index) => (
             <div
+              key={index}
+              className={`flex items-start gap-2 mb-4 ${
+                msg.isUser ? 'flex-row-reverse' : ''
+              }`}
+            >
+              {msg.isUser ? (
+                <Avatar 
+                  name={user.user_metadata?.full_name || user.email || ''} 
+                  size={32} 
+                />
+              ) : (
+                <img src="/logo.png" alt="AI Coach" className="w-8 h-8 rounded-full" />
+              )}
+              <div
+                className={`px-4 py-2 rounded-lg max-w-[70%] ${
+                  msg.isUser
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-800'
+                }`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 输入区域 */}
+        <form onSubmit={handleSendMessage} className="bg-white p-4 shadow-lg">
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="输入你的问题..."
+              className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !inputMessage.trim()}
               className={`
-                max-w-[80%] p-3 rounded-lg
-                ${message.isUser 
-                  ? 'bg-blue-500 text-white rounded-br-none' 
-                  : 'bg-white shadow rounded-bl-none'}
-                ${message.isError ? 'bg-red-100 text-red-600' : ''}
+                px-6 py-2 rounded-full font-medium
+                ${isLoading || !inputMessage.trim()
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'}
               `}
             >
-              {message.content}
-            </div>
-            {message.isUser && (
-              <img 
-                src={localStorage.getItem('userAvatar') || '/user-avatar.png'} 
-                alt="User" 
-                className="w-8 h-8 rounded-full ml-2" 
-              />
-            )}
+              发送
+            </button>
           </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <img src="/logo.png" alt="AI" className="w-8 h-8 rounded-full mr-2" />
-            <div className="bg-white shadow p-3 rounded-lg rounded-bl-none">
-              <div className="typing-indicator">思考中...</div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        </form>
       </div>
-
-      {/* 输入区域 */}
-      <form onSubmit={handleSendMessage} className="bg-white p-4 shadow-lg">
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="输入你的问题..."
-            className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputMessage.trim()}
-            className={`
-              px-6 py-2 rounded-full font-medium
-              ${isLoading || !inputMessage.trim()
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'}
-            `}
-          >
-            发送
-          </button>
-        </div>
-      </form>
     </div>
   );
 };

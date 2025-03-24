@@ -1,24 +1,30 @@
 import { useMemo } from 'react';
 
-function Avatar({ name, size = 40 }) {
-  // 生成随机颜色
+function Avatar({ name = '', size = 40 }) {
+  // 马卡龙色系
   const backgroundColor = useMemo(() => {
     const colors = [
-      '#F87171', // 红色
-      '#FB923C', // 橙色
-      '#FBBF24', // 黄色
-      '#34D399', // 绿色
-      '#60A5FA', // 蓝色
-      '#818CF8', // 靛蓝
-      '#A78BFA', // 紫色
+      '#FFB5E8', // 粉色
+      '#B5B9FF', // 淡紫色
+      '#97E1D4', // 薄荷绿
+      '#F6A6C1', // 玫瑰粉
+      '#FFCCB6', // 杏色
+      '#B5DEFF', // 天蓝色
+      '#E2F0CB', // 淡绿色
+      '#DCD3FF', // 薰衣草色
     ];
-    // 使用名字作为种子来选择颜色，这样同一个用户总是得到相同的颜色
+    
+    if (!name) return colors[0];  // 如果没有名字，返回第一个颜色
+    
+    // 使用名字作为种子来选择颜色
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
     return colors[index];
   }, [name]);
 
   // 获取名字的首字母（大写）
   const initials = useMemo(() => {
+    if (!name) return '?';  // 如果没有名字，显示问号
+    
     return name
       .split(' ')
       .map(word => word[0])
@@ -40,7 +46,8 @@ function Avatar({ name, size = 40 }) {
         color: 'white',
         fontSize: `${size * 0.4}px`,
         fontWeight: 'bold',
-        userSelect: 'none'
+        userSelect: 'none',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}
     >
       {initials}
