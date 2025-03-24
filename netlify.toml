@@ -11,10 +11,10 @@
 
 [[edge_functions]]
   function = "api"
-  path = "/api"
+  path = "/.netlify/edge-functions/api"
 
 [[redirects]]
-  from = "/api"
+  from = "/.netlify/edge-functions/api"
   to = "/.netlify/edge-functions/api"
   status = 200
   force = true

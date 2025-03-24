@@ -109,8 +109,8 @@ function Chat({ token }) {
 
       const initialPrompt = '作为我的生活教练，帮助我一步一步的解决问题...';
 
-      // 使用统一的 API 路径
-      const apiUrl = '/api';
+      // 始终使用完整的 Edge Function 路径
+      const apiUrl = '/.netlify/edge-functions/api';
       console.log('Calling API at:', apiUrl);
 
       const response = await fetch(apiUrl, {
