@@ -3,23 +3,19 @@
   publish = "dist"
   edge_functions = "netlify/edge-functions"
 
-[[edge_functions]]
-  function = "api"
-  path = "/api/*"
+[dev]
+  framework = "#auto"
+  targetPort = 5173
+  port = 8888
+  edge_functions_port = 9999
 
 [[edge_functions]]
-  function = "auth"
-  path = "/auth/*"
+  path = "/api"
+  function = "api"
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/edge-functions/api/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/auth/*"
-  to = "/.netlify/edge-functions/auth/:splat"
   status = 200
   force = true
 
@@ -33,13 +29,6 @@
 
 [functions]
   node_bundler = "esbuild"
-
-[dev]
-  framework = "#custom"
-  command = "npm run dev"
-  targetPort = 5173
-  port = 8888
-  publish = "dist"
 
 [[headers]]
   for = "/assets/*"

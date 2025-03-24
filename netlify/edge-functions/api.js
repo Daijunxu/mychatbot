@@ -15,79 +15,104 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-export default async (request, context) => {
-  try {
-    // 获取认证 token
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response('Unauthorized', { status: 401 });
-    }
+export default async function handler(request, context) {
+  // 处理 CORS
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
+  }
 
-    const token = authHeader.replace('Bearer ', '');
-    
-    // 验证用户
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response('Unauthorized', { status: 401 });
+  // 只允许 POST 请求
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }), 
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      }
+    );
+  }
+
+  try {
+    // 获取 API key
+    const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
+    if (!apiKey) {
+      throw new Error('API key not configured');
     }
 
     // 解析请求体
-    const { message } = await request.json();
-    if (!message) {
-      return new Response('Message is required', { status: 400 });
-    }
+    const body = await request.json();
+    console.log('Request received:', body);
 
-    // 获取历史消息
-    const { data: messages, error: historyError } = await supabase
-      .from('messages')
-      .select('content, is_user')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(10);
-
-    if (historyError) {
-      console.error('Error fetching message history:', historyError);
-    }
-
-    // 构建上下文
-    const context = messages ? messages.map(msg => 
-      `${msg.is_user ? 'User' : 'Assistant'}: ${msg.content}`
-    ).join('\n') + '\nUser: ' + message : message;
-
-    // 调用 AI API
-    const aiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    // 调用 DeepSeek API
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
-        messages: [{ role: 'user', content: context }]
-      })
+        messages: [
+          {
+            role: 'user',
+            content: body.message
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
     });
 
-    if (!aiResponse.ok) {
-      throw new Error(`AI API error: ${aiResponse.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('DeepSeek API error:', errorData);
+      throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices[0].message.content;
+    const data = await response.json();
+    console.log('DeepSeek response:', data);
 
-    // 保存对话记录
-    await supabase.from('messages').insert([
-      { user_id: user.id, content: message, is_user: true },
-      { user_id: user.id, content: aiMessage, is_user: false }
-    ]);
+    // 返回 AI 响应
+    return new Response(
+      JSON.stringify({
+        response: data.choices[0].message.content
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
 
-    return new Response(JSON.stringify({ response: aiMessage }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('Error in API handler:', error);
+
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
   }
-}; 
+} 
