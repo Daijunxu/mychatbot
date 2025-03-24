@@ -33,10 +33,18 @@ const Chat = ({ token }) => {
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
-      navigate('/login');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        return;
+      }
+      // 清除本地存储
+      localStorage.removeItem('sb-token');
+      localStorage.removeItem('supabase.auth.token');
+      // 强制跳转到登录页
+      window.location.href = '/login';
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Sign out error:', error);
     }
   };
 
