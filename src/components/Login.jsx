@@ -28,11 +28,16 @@ function Login() {
 
   const handleGoogleLogin = async () => {
     try {
+      // 获取当前环境的域名
+      const redirectUrl = import.meta.env.PROD 
+        ? 'https://gilded-cucurucho-a6bf54.netlify.app'  // 替换为你的 Netlify 域名
+        : 'http://localhost:3000';
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           skipBrowserRedirect: false,
-          redirectTo: window.location.origin
+          redirectTo: redirectUrl
         }
       });
 
