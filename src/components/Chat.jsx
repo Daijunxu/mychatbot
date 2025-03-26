@@ -3,6 +3,54 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Avatar from './Avatar';
 
+// 修改 groupChatsByDate 函数
+const groupChatsByDate = (chats) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const lastWeek = new Date(today);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  const lastMonth = new Date(today);
+  lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const lastThreeMonths = new Date(today);
+  lastThreeMonths.setMonth(lastThreeMonths.getMonth() - 3);
+
+  // 添加排序函数
+  const sortByUpdatedAt = (a, b) => 
+    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+
+  return {
+    today: chats
+      .filter(chat => new Date(chat.updated_at) >= today)
+      .sort(sortByUpdatedAt),
+    yesterday: chats
+      .filter(chat => {
+        const date = new Date(chat.updated_at);
+        return date >= yesterday && date < today;
+      })
+      .sort(sortByUpdatedAt),
+    thisWeek: chats
+      .filter(chat => {
+        const date = new Date(chat.updated_at);
+        return date >= lastWeek && date < yesterday;
+      })
+      .sort(sortByUpdatedAt),
+    thisMonth: chats
+      .filter(chat => {
+        const date = new Date(chat.updated_at);
+        return date >= lastMonth && date < lastWeek;
+      })
+      .sort(sortByUpdatedAt),
+    threeMonths: chats
+      .filter(chat => {
+        const date = new Date(chat.updated_at);
+        return date >= lastThreeMonths && date < lastMonth;
+      })
+      .sort(sortByUpdatedAt)
+  };
+};
+
 function Chat({ token }) {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -159,23 +207,22 @@ function Chat({ token }) {
       setMessages(finalMessages);
 
       // 保存到数据库
-      const { error: saveError } = await supabase
+      const { error: updateError } = await supabase
         .from('chat_sessions')
         .update({ 
           messages: finalMessages,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString() // 显式更新时间
         })
         .eq('id', currentSessionId);
 
-      if (saveError) {
-        console.error('Error saving to database:', saveError);
-        // 不中断用户体验，只记录错误
-      }
+      if (updateError) throw updateError;
+
+      // 重新加载聊天历史以更新排序
+      await loadChatHistory();
 
     } catch (error) {
-      console.error('Error details:', error);
-      setError(`发送消息失败: ${error.message}`);
-    } finally {
+      console.error('Error sending message:', error);
+      setError('Failed to send message');
       setLoading(false);
     }
   };
@@ -183,6 +230,58 @@ function Chat({ token }) {
   // 切换侧边栏
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  // 在侧边栏渲染历史记录的部分进行修改
+  const renderChatHistory = () => {
+    const groupedChats = groupChatsByDate(chatHistory);
+    
+    const sections = [
+      { title: 'Today', chats: groupedChats.today },
+      { title: 'Yesterday', chats: groupedChats.yesterday },
+      { title: 'This Week', chats: groupedChats.thisWeek },
+      { title: 'This Month', chats: groupedChats.thisMonth },
+      { title: 'Last 3 Months', chats: groupedChats.threeMonths }
+    ];
+
+    return sections.map(section => {
+      if (section.chats.length === 0) return null;
+
+      return (
+        <div key={section.title} className="mb-4">
+          <div className="px-3 py-2 text-xs text-gray-500 font-medium">
+            {section.title}
+          </div>
+          <div className="space-y-1">
+            {section.chats.map(chat => (
+              <div
+                key={chat.id}
+                onClick={() => {
+                  loadChatSession(chat.id);
+                  if (window.innerWidth < 768) {
+                    setSidebarOpen(false);
+                  }
+                }}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors
+                  ${currentSessionId === chat.id ? 'bg-gray-100' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 truncate">
+                    {(chat.messages && chat.messages[0]?.content) || 'New chat'}
+                  </div>
+                  <div className="text-xs text-gray-400 ml-2">
+                    {new Date(chat.updated_at).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    });
   };
 
   return (
@@ -209,25 +308,8 @@ function Chat({ token }) {
             </div>
 
             {/* 对话历史列表 */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-1 p-2">
-                {/* 时间分组标题 */}
-                <div className="px-3 py-2 text-xs text-gray-500">今天</div>
-                {chatHistory.map((chat) => (
-                  <div
-                    key={chat.id}
-                    onClick={() => {
-                      loadChatSession(chat.id);
-                    }}
-                    className={`p-3 text-sm rounded-lg cursor-pointer hover:bg-gray-100 transition-colors
-                      ${currentSessionId === chat.id ? 'bg-gray-100' : ''}`}
-                  >
-                    <div className="text-gray-800 truncate">
-                      {(chat.messages && chat.messages[0]?.content) || '新对话'}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex-1 overflow-y-auto py-2">
+              {renderChatHistory()}
             </div>
 
             {/* 底部用户信息 */}
