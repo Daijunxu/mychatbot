@@ -31,77 +31,82 @@ function Chat({ token }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
 
-  // 获取用户信息和聊天历史
+  // 加载聊天历史
   useEffect(() => {
-    const fetchUserAndHistory = async () => {
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        setUser(user);
+    loadChatHistory();
+  }, []);
 
-        // 获取用户的聊天历史
-        const { data: sessions, error: historyError } = await supabase
-          .from('chat_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (historyError) throw historyError;
-        setChatHistory(sessions || []);
-
-        // 如果有历史会话，加载最新的一个
-        if (sessions && sessions.length > 0) {
-          setCurrentSessionId(sessions[0].id);
-          setMessages(sessions[0].messages || []);
-        } else {
-          // 如果没有历史会话，创建新会话
-          await startNewChat();
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        setError('加载失败');
-      }
-    };
-
-    if (token) {
-      fetchUserAndHistory();
-    }
-  }, [token]);
-
-  const startNewChat = async () => {
-    setMessages([]);
-    setCurrentSessionId(null);
-    setShowWelcome(true);
-    
+  // 加载聊天历史的函数
+  const loadChatHistory = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from('chat_sessions').insert([
-        { user_id: user.id }
-      ]).select();
-      
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      setCurrentSessionId(data[0].id);
+      setChatHistory(data || []);
+
+      // 如果没有历史记录，创建新会话
+      if (!data || data.length === 0) {
+        await startNewChat();
+      }
     } catch (error) {
-      console.error('Error creating new chat:', error);
-      setError('Failed to create new chat');
+      console.error('Error loading chat history:', error);
+      setError('Failed to load chat history');
     }
   };
 
+  // 加载特定聊天会话的函数
   const loadChatSession = async (sessionId) => {
     try {
-      const { data: session, error } = await supabase
+      const { data, error } = await supabase
         .from('chat_sessions')
-        .select('*')
+        .select('messages')
         .eq('id', sessionId)
         .single();
 
       if (error) throw error;
-
-      setMessages(session.messages || []);
-      setCurrentSessionId(session.id);
+      
+      setCurrentSessionId(sessionId);
+      setMessages(data.messages || []);
+      setShowWelcome(false); // 加载历史消息时隐藏欢迎界面
     } catch (error) {
       console.error('Error loading chat session:', error);
-      setError('加载对话失败');
+      setError('Failed to load chat session');
+    }
+  };
+
+  // 开始新对话的函数
+  const startNewChat = async () => {
+    setMessages([]);
+    setShowWelcome(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert([{ user_id: user.id, messages: [] }])
+        .select();
+      
+      if (error) throw error;
+      
+      setCurrentSessionId(data[0].id);
+      // 更新聊天历史但不加载新会话
+      const { data: historyData, error: historyError } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!historyError) {
+        setChatHistory(historyData || []);
+      }
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+      setError('Failed to create new chat');
     }
   };
 
