@@ -14,6 +14,7 @@ function Chat({ token }) {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // 响应式处理
   useEffect(() => {
@@ -54,7 +55,7 @@ function Chat({ token }) {
           setMessages(sessions[0].messages || []);
         } else {
           // 如果没有历史会话，创建新会话
-          await startNewChat(user.id);
+          await startNewChat();
         }
       } catch (error) {
         console.error('Error:', error);
@@ -67,29 +68,22 @@ function Chat({ token }) {
     }
   }, [token]);
 
-  const startNewChat = async (userId) => {
+  const startNewChat = async () => {
+    setMessages([]);
+    setCurrentSessionId(null);
+    setShowWelcome(true);
+    
     try {
-      // 创建新会话
-      const { data: newSession, error } = await supabase
-        .from('chat_sessions')
-        .insert([
-          {
-            user_id: userId || user.id,
-            messages: [],
-          }
-        ])
-        .select()
-        .single();
-
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from('chat_sessions').insert([
+        { user_id: user.id }
+      ]).select();
+      
       if (error) throw error;
-
-      // 更新状态
-      setMessages([]);
-      setCurrentSessionId(newSession.id);
-      setChatHistory(prev => [newSession, ...prev]);
+      setCurrentSessionId(data[0].id);
     } catch (error) {
       console.error('Error creating new chat:', error);
-      setError('创建新对话失败');
+      setError('Failed to create new chat');
     }
   };
 
@@ -114,7 +108,8 @@ function Chat({ token }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || loading) return;
-
+    
+    setShowWelcome(false);
     const userMessage = newMessage;
     setNewMessage('');
     setLoading(true);
@@ -123,6 +118,8 @@ function Chat({ token }) {
     try {
       const updatedMessages = [...messages, { content: userMessage, is_user: true }];
       setMessages(updatedMessages);
+
+      const initialPrompt = 'As an adversity coach, guide me through my callenges step by step by asking only one question at a time, following these rules: 1.Ask definition-based questions about core concepts, such as "What does happiness mean to you?" 2.After greeting, first ask and confirm the conversation topic, then ask and clarify the end goal, reflect it back, and align with me. 3.Avoid leading the conversation; let me take the initiative. 4.Regularly check whether the end goal is met; if yes, move to the closing process. 5.The closing process has three questions (with flexible wording): 5.1 What value did today\'s conversation create? 5.2 Anything else to add? 5.3 What kind of recognition or affirmation would you like? 6.If my answer is vague, rephrase the question and ask again. 7.When switching topics, list past ones and ask which to continue. 8.Don\'t use bullet points. 9.As concise as possible, keep each response under 100 words';
 
       // 构建消息历史
       const messageHistory = messages.map(msg => ({
@@ -273,43 +270,79 @@ function Chat({ token }) {
             </button>
           </div>
 
-          {/* 聊天区域 - 修改这部分 */}
+          {/* 聊天区域 */}
           <div className="flex-1 overflow-y-auto">
             <div className="h-full flex justify-center">
               <div className="w-full max-w-3xl px-4">
-                <div className="space-y-4 py-4">
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-start gap-3 ${
-                        msg.is_user ? 'flex-row-reverse' : ''
-                      }`}
-                    >
-                      {msg.is_user ? (
-                        <Avatar 
-                          name={user?.user_metadata?.full_name || user?.email || ''} 
-                          size={28} 
-                        />
-                      ) : (
-                        <img src="/logo.png" alt="AI Coach" className="w-7 h-7 rounded-full" />
-                      )}
-                      <div
-                        className={`px-4 py-2 rounded-2xl max-w-[80%] ${
-                          msg.is_user
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {msg.content}
+                {showWelcome ? (
+                  // 欢迎界面
+                  <div className="flex flex-col items-center py-8 space-y-6">
+                    <img src="/logo.png" alt="Serena" className="w-16 h-16 rounded-full" />
+                    <h1 className="text-2xl font-semibold text-gray-800">
+                      Serena - Your Adversity Coach
+                    </h1>
+                    <p className="text-center text-gray-600 max-w-md">
+                      I will help you develop strategies and skills to cope with challenges, bounce back from setbacks, ultimately fostering resilience and growth.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 w-full max-w-lg mt-8">
+                      <div className="col-span-2 sm:col-span-1">
+                        <button className="w-full p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="font-medium">How to overcome procrastination?</div>
+                        </button>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <button className="w-full p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="font-medium">How to land a new job?</div>
+                        </button>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <button className="w-full p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="font-medium">How to fight back PIP?</div>
+                        </button>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <button className="w-full p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="font-medium">How can I get out of burnout?</div>
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  // 现有的消息列表
+                  <div className="space-y-4 py-4">
+                    {messages.map((msg, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-start gap-3 ${
+                          msg.is_user ? 'flex-row-reverse' : ''
+                        }`}
+                      >
+                        {msg.is_user ? (
+                          <Avatar 
+                            name={user?.user_metadata?.full_name || user?.email || ''} 
+                            size={28} 
+                          />
+                        ) : (
+                          <img src="/logo.png" alt="AI Coach" className="w-7 h-7 rounded-full" />
+                        )}
+                        <div
+                          className={`px-4 py-2 rounded-2xl max-w-[80%] ${
+                            msg.is_user
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* 输入区域 - 修改这部分 */}
+          {/* 输入区域 */}
           <div className="border-t bg-white">
             <div className="flex justify-center">
               <div className="w-full max-w-3xl px-4 py-4">
@@ -318,7 +351,7 @@ function Chat({ token }) {
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="输入消息..."
+                    placeholder="Type a message..."
                     className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
                   />
                   <button
@@ -326,7 +359,7 @@ function Chat({ token }) {
                     disabled={loading}
                     className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
                   >
-                    {loading ? '发送中...' : '发送'}
+                    {loading ? 'Sending...' : 'Send'}
                   </button>
                 </form>
               </div>
