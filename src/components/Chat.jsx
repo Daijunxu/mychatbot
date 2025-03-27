@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Avatar from './Avatar';
@@ -63,6 +63,8 @@ function Chat({ token }) {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(null); // 控制当前打开的菜单
+  const [userInfo, setUserInfo] = useState(null);
 
   // 响应式处理
   useEffect(() => {
@@ -79,6 +81,18 @@ function Chat({ token }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
 
+  // 添加处理点击外部关闭菜单的逻辑
+  const menuRef = useRef(null);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // 加载聊天历史
   useEffect(() => {
     loadChatHistory();
@@ -92,6 +106,7 @@ function Chat({ token }) {
         .from('chat_sessions')
         .select('*')
         .eq('user_id', user.id)
+        .eq('archived', false) // 只加载未归档的对话
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -155,6 +170,50 @@ function Chat({ token }) {
     } catch (error) {
       console.error('Error creating new chat:', error);
       setError('Failed to create new chat');
+    }
+  };
+
+  // 添加归档对话的函数
+  const archiveChat = async (chatId) => {
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .update({ archived: true })
+        .eq('id', chatId);
+
+      if (error) throw error;
+      
+      // 更新本地状态
+      setChatHistory(prev => prev.filter(chat => chat.id !== chatId));
+      if (currentSessionId === chatId) {
+        await startNewChat();
+      }
+      setMenuOpen(null);
+    } catch (error) {
+      console.error('Error archiving chat:', error);
+      setError('Failed to archive chat');
+    }
+  };
+
+  // 添加删除对话的函数
+  const deleteChat = async (chatId) => {
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', chatId);
+
+      if (error) throw error;
+      
+      // 更新本地状态
+      setChatHistory(prev => prev.filter(chat => chat.id !== chatId));
+      if (currentSessionId === chatId) {
+        await startNewChat();
+      }
+      setMenuOpen(null);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      setError('Failed to delete chat');
     }
   };
 
@@ -256,26 +315,62 @@ function Chat({ token }) {
             {section.chats.map(chat => (
               <div
                 key={chat.id}
-                onClick={() => {
-                  loadChatSession(chat.id);
-                  if (window.innerWidth < 768) {
-                    setSidebarOpen(false);
-                  }
-                }}
-                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors
+                className={`px-3 py-2 text-sm hover:bg-gray-100 transition-colors relative group
                   ${currentSessionId === chat.id ? 'bg-gray-100' : ''}`}
               >
-                <div className="flex items-center justify-between">
+                <div 
+                  className="flex items-center cursor-pointer"
+                  onClick={() => {
+                    loadChatSession(chat.id);
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                >
                   <div className="flex-1 truncate">
                     {(chat.messages && chat.messages[0]?.content) || 'New chat'}
                   </div>
-                  <div className="text-xs text-gray-400 ml-2">
-                    {new Date(chat.updated_at).toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit'
-                    })}
-                  </div>
                 </div>
+                
+                {/* 三点菜单按钮 */}
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(menuOpen === chat.id ? null : chat.id);
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                  </svg>
+                </button>
+
+                {/* 下拉菜单 */}
+                {menuOpen === chat.id && (
+                  <div
+                    ref={menuRef}
+                    className="absolute right-0 top-8 w-48 py-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                  >
+                    <button
+                      onClick={() => archiveChat(chat.id)}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                      Archive
+                    </button>
+                    <button
+                      onClick={() => deleteChat(chat.id)}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -283,6 +378,33 @@ function Chat({ token }) {
       );
     });
   };
+
+  // 加载用户信息
+  const loadUserInfo = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      
+      // 获取用户名（按优先级）
+      const displayName = 
+        user.user_metadata?.name ||           // 从 metadata 获取 name
+        user.user_metadata?.full_name ||      // 或 full_name
+        user.user_metadata?.user_name ||      // 或 user_name
+        (user.email ? user.email.split('@')[0] : 'User');  // 或从邮箱获取，或默认值
+      
+      setUserInfo({
+        ...user,
+        displayName: displayName
+      });
+    } catch (error) {
+      console.error('Error loading user info:', error);
+    }
+  };
+
+  // 在组件加载时获取用户信息
+  useEffect(() => {
+    loadUserInfo();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -303,7 +425,7 @@ function Chat({ token }) {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
-                新对话
+                New Chat
               </button>
             </div>
 
@@ -316,13 +438,14 @@ function Chat({ token }) {
             <div className="p-2 border-t border-gray-200">
               <div className="flex items-center justify-between p-3 text-sm text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <Avatar 
-                    name={user?.user_metadata?.full_name || user?.email || ''} 
-                    size={24} 
-                  />
-                  <span className="truncate">
-                    {user?.user_metadata?.full_name || user?.email || '用户'}
-                  </span>
+                  {userInfo && (
+                    <>
+                      <Avatar name={userInfo.displayName} size={24} />
+                      <span className="truncate">
+                        {userInfo.displayName}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={() => supabase.auth.signOut()}
@@ -406,7 +529,7 @@ function Chat({ token }) {
                       >
                         {msg.is_user ? (
                           <Avatar 
-                            name={user?.user_metadata?.full_name || user?.email || ''} 
+                            name={userInfo?.displayName || ''} 
                             size={28} 
                           />
                         ) : (
